@@ -1,86 +1,123 @@
-"""
-Main application to demonstrate CRUD operations for the ERD-based system.
-Edit the connection string for your MS SQL Server.
-"""
-from models import Base, Client, Worker, Specialities, Location, Task, SubTask, Request, AvailableSlot
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from models import SubTask  # or your actual model name
+import sqlite3
 
+# Connect to SQLite database (or create it if it doesn't exist)
+conn = sqlite3.connect('test.db')
+cursor = conn.cursor()
 
-# Edit this connection string for your MS SQL Server
-# Example: 'mssql+pyodbc://username:password@dsn_name'
-engine = create_engine('sqlite:///test.db')  # For demo/testing, uses SQLite
-Session = sessionmaker(bind=engine)
-session = Session()
-session.query(SubTask).delete()
-session.commit()
+# Drop tables if they exist (simplified for SQLite)
+cursor.executescript('''
+DROP TABLE IF EXISTS AVAILABLE_IN;
+DROP TABLE IF EXISTS AVAILABLE_SLOT;
+DROP TABLE IF EXISTS CLIENT;
+DROP TABLE IF EXISTS HAS;
+DROP TABLE IF EXISTS LOCATION;
+DROP TABLE IF EXISTS LOCATION_NAME;
+DROP TABLE IF EXISTS REQUEST;
+DROP TABLE IF EXISTS SEARCH_FOR;
+DROP TABLE IF EXISTS SPECIALITIES;
+DROP TABLE IF EXISTS SUB_TASK;
+DROP TABLE IF EXISTS TASK;
+DROP TABLE IF EXISTS WORKER;
+DROP TABLE IF EXISTS WORK_IN;
+''')
 
-# Create all tables (run once)
-Base.metadata.create_all(engine)
+# Create tables (simplified for SQLite, adjust types as needed)
+cursor.executescript('''
+CREATE TABLE AVAILABLE_SLOT (
+   SLOT_ID INTEGER PRIMARY KEY,
+   START_TIME TEXT,
+   END_TIME TEXT
+);
 
-def create_sample_data():
-    # Create a client
-    client = Client(name='John Doe', phone='123456789', address='123 Main St', payment_info='VISA')
-    session.add(client)
-    # Create a worker
-    worker = Worker(name='Alice')
-    session.add(worker)
-    # Create a speciality
-    speciality = Specialities(speciality_name='Plumbing')
-    session.add(speciality)
-    # Create a location
-    location = Location(location_name='Downtown')
-    session.add(location)
-    # Create a slot
-    slot = AvailableSlot(start_time='09:00', end_time='12:00')
-    session.add(slot)
-    # Create a task
-    task = Task(task_name='Fix Sink', avg_fee=50.0, avg_time_to_finish=2.0)
-    session.add(task)
-    # Create a subtask
-    subtask = SubTask(name='Turn off water', status='Pending', task=task)
-    session.add(subtask)
-    # Create a request
-    request = Request(request_address='123 Main St', client=client, slot=slot)
-    request.tasks.append(task)
-    session.add(request)
-    # Set relationships
-    worker.specialities.append(speciality)
-    worker.locations.append(location)
-    worker.slots.append(slot)
-    client.locations.append(location)
-    task.specialities.append(speciality)
-    session.commit()
-    print('Sample data created.')
+CREATE TABLE WORKER (
+   WORKER_ID INTEGER PRIMARY KEY,
+   NAME TEXT NOT NULL
+);
 
+CREATE TABLE CLIENT (
+   CLIENT_ID INTEGER PRIMARY KEY,
+   NAME TEXT NOT NULL,
+   PHONE TEXT NOT NULL,
+   ADDRESS TEXT NOT NULL,
+   PAYMENT_INFO TEXT
+);
+
+CREATE TABLE SPECIALITIES (
+   SPECIALITY_ID INTEGER PRIMARY KEY,
+   TASK_ID INTEGER,
+   SPECIALITY_NAME TEXT NOT NULL
+);
+
+CREATE TABLE LOCATION_NAME (
+   LOC_ID INTEGER PRIMARY KEY,
+   LOCATION_ID INTEGER,
+   LOCATION_NAME TEXT NOT NULL
+);
+
+CREATE TABLE LOCATION (
+   LOCATION_ID INTEGER PRIMARY KEY,
+   LOC_ID INTEGER
+);
+
+CREATE TABLE TASK (
+   TASK_ID INTEGER PRIMARY KEY,
+   TASK_NAME TEXT NOT NULL,
+   REQUEST_ID INTEGER,
+   AVG_FEE REAL NOT NULL,
+   AVG_TIME_FINISH TEXT
+);
+
+CREATE TABLE SUB_TASK (
+   TASK_ID INTEGER,
+   NAME TEXT NOT NULL,
+   STATUS TEXT NOT NULL,
+   PRIMARY KEY (TASK_ID, NAME)
+);
+
+CREATE TABLE REQUEST (
+   REQUEST_ID INTEGER PRIMARY KEY,
+   TASK_ID INTEGER,
+   CLIENT_ID INTEGER,
+   REQUEST_ADDRESS TEXT NOT NULL
+);
+
+CREATE TABLE HAS (
+   WORKER_ID INTEGER,
+   SPECIALITY_ID INTEGER,
+   PRIMARY KEY (WORKER_ID, SPECIALITY_ID)
+);
+
+CREATE TABLE AVAILABLE_IN (
+   WORKER_ID INTEGER,
+   SLOT_ID INTEGER,
+   PRIMARY KEY (WORKER_ID, SLOT_ID)
+);
+
+CREATE TABLE WORK_IN (
+   WORKER_ID INTEGER,
+   LOCATION_ID INTEGER,
+   PRIMARY KEY (WORKER_ID, LOCATION_ID)
+);
+
+CREATE TABLE SEARCH_FOR (
+   REQUEST_ID INTEGER,
+   WORKER_ID INTEGER,
+   PRIMARY KEY (REQUEST_ID, WORKER_ID)
+);
+''')
+
+# Example: Insert a client
+cursor.execute("INSERT INTO CLIENT (NAME, PHONE, ADDRESS, PAYMENT_INFO) VALUES (?, ?, ?, ?)",
+               ("John Doe", "123456789", "123 Main St", "VISA"))
+conn.commit()
+
+# Example: List clients
 def list_clients():
-    print('Clients:')
-    for client in session.query(Client).all():
-        print(f'- {client.client_id}: {client.name}, {client.phone}, {client.address}')
+    cursor.execute("SELECT * FROM CLIENT")
+    for row in cursor.fetchall():
+        print(row)
 
-def update_client(client_id, new_name):
-    client = session.query(Client).filter_by(client_id=client_id).first()
-    if client:
-        client.name = new_name
-        session.commit()
-        print(f'Client {client_id} updated.')
-    else:
-        print('Client not found.')
+list_clients()
 
-def delete_client(client_id):
-    client = session.query(Client).filter_by(client_id=client_id).first()
-    if client:
-        session.delete(client)
-        session.commit()
-        print(f'Client {client_id} deleted.')
-    else:
-        print('Client not found.')
-
-if __name__ == '__main__':
-    create_sample_data()
-    list_clients()
-    update_client(1, 'Jane Doe')
-    list_clients()
-    delete_client(1)
-    list_clients()
+# Close connection
+conn.close()
