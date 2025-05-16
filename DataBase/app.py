@@ -5,12 +5,16 @@ Edit the connection string for your MS SQL Server.
 from models import Base, Client, Worker, Specialities, Location, Task, SubTask, Request, AvailableSlot
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from models import SubTask  # or your actual model name
+
 
 # Edit this connection string for your MS SQL Server
 # Example: 'mssql+pyodbc://username:password@dsn_name'
 engine = create_engine('sqlite:///test.db')  # For demo/testing, uses SQLite
 Session = sessionmaker(bind=engine)
 session = Session()
+session.query(SubTask).delete()
+session.commit()
 
 # Create all tables (run once)
 Base.metadata.create_all(engine)
